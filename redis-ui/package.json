@@ -18,7 +18,9 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start:server": "concurrently \"npm run start\"  \"npm run backend\"",
+    "backend": "cd ../go-backend && go run main.go",
+    "start": "PORT=3001 react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
@@ -40,5 +42,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "proxy": "http://localhost:8080",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
   }
 }
