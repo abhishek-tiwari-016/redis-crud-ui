@@ -44,18 +44,11 @@ type Documents struct {
 
 func InitRedis() {
 	client = redisearch.NewClient("localhost:6379", "search-client")
-
-	// _, err := client.Ping(ctx).Result()
-	// if err != nil {
-	// 	fmt.Println("Error connecting to Redis", err)
-	// 	panic(err)
-	// }
 	fmt.Println("Connected to Redis")
 }
 
 func SearchIndex(indexName, query string) []Documents {
 	docs, _, err := client.Search(redisearch.NewQuery(query))
-	// cmd := client.Get(ctx, "config:ncr-voyix_store01_cashservice")
 	if err != nil {
 		fmt.Println("Error querying redis", err)
 		return nil
@@ -70,5 +63,3 @@ func SearchIndex(indexName, query string) []Documents {
 	fmt.Printf("We have received: %v", doc)
 	return doc
 }
-
-// func InsertDocument
