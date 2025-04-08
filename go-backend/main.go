@@ -10,10 +10,12 @@ func main() {
 	r := gin.Default()
 	common.InitRedis()
 
-	index := common.SearchIndex("search-client", `@section:{SCOX}`)
-	r.GET("/api/hello", func(ctx *gin.Context) {
+	r.GET("/document/get", func(ctx *gin.Context) {
+		index := common.SearchIndex("search-client", `@language:{*US}`)
 		ctx.JSON(200, gin.H{"message": index})
 	})
+
+	r.POST("/document/update", common.UpdateDocument)
 
 	r.Run(":8080")
 }

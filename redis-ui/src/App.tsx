@@ -1,4 +1,4 @@
-import EditableTable from './EditableTable';
+import EditableTable from './DocumentTable';
 
 function App() {
   return (

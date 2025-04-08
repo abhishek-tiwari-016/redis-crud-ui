@@ -5,11 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/RediSearch/redisearch-go/redisearch"
+	"github.com/RediSearch/redisearch-go/v2/redisearch"
+	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis"
+	redigo "github.com/gomodule/redigo/redis"
 )
 
 var ctx = context.Background()
-var client *redisearch.Client
+var searchClient *redisearch.Client
+var client *redis.Client
 
 type Document struct {
 
@@ -43,23 +47,70 @@ type Documents struct {
 }
 
 func InitRedis() {
-	client = redisearch.NewClient("localhost:6379", "search-client")
+	client = redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+	pool := &redigo.Pool{Dial: func() (redigo.Conn, error) {
+		return redigo.Dial("tcp", "localhost:6379")
+	}}
+	searchClient = redisearch.NewClientFromPool(pool, "search-client")
 	fmt.Println("Connected to Redis")
 }
 
 func SearchIndex(indexName, query string) []Documents {
-	docs, _, err := client.Search(redisearch.NewQuery(query))
+	docs, _, err := searchClient.Search(redisearch.NewQuery(query).Limit(0, 100))
 	if err != nil {
 		fmt.Println("Error querying redis", err)
 		return nil
 	}
-	fmt.Println("check totals: ", docs[0])
-	for _, doc := range docs {
-		fmt.Println(doc.Id, doc.Properties)
-	}
+	// fmt.Println("check totals: ", docs[0])
+	// for _, doc := range docs {
+	// 	fmt.Println(doc.Id, doc.Properties)
+	// }
 	var doc []Documents
 	byteDoc, _ := json.Marshal(docs)
 	json.Unmarshal(byteDoc, &doc)
-	fmt.Printf("We have received: %v", doc)
 	return doc
+}
+
+func UpdateDocument(ctx *gin.Context) {
+	var updatedDoc map[string]string
+
+	err := ctx.BindJSON(&updatedDoc)
+	if err != nil {
+		// http.Error(w, "Invalid request body", http.StatusBadRequest)
+		ctx.JSON(400, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	Id, exists := updatedDoc["Id"]
+	if !exists {
+		// http.Error(w, "Missing Id of Doc", http.StatusBadRequest)
+		ctx.JSON(400, gin.H{"error": "Missing Id of Doc"})
+		return
+	}
+
+	delete(updatedDoc, "Id")
+
+	// updating fields in redis for Id
+	for key, val := range updatedDoc {
+		_, err = client.HSet(Id, key, val).Result()
+		if err != nil {
+			// http.Error(w, "Failed to update Redis", http.StatusInternalServerError)
+			ctx.JSON(500, gin.H{"error": "Failed to update Redis"})
+			return
+		}
+	}
+
+	// re-indexing doc
+	_, err = searchClient.AddHash(Id, 1.0, "", false)
+	if err != nil {
+		fmt.Println("Error re-indexing document", err)
+		// http.Error(w, "Error re-indexing document", http.StatusInternalServerError)
+		ctx.JSON(500, gin.H{"error": "Error re-indexing document"})
+		return
+	}
+	// fmt.Println("Successfully updated document")
+	ctx.JSON(200, gin.H{"message": "Successfully updated document"})
+
 }
