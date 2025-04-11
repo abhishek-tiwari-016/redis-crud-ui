@@ -63,10 +63,6 @@ func SearchIndex(indexName, query string) []Documents {
 		fmt.Println("Error querying redis", err)
 		return nil
 	}
-	// fmt.Println("check totals: ", docs[0])
-	// for _, doc := range docs {
-	// 	fmt.Println(doc.Id, doc.Properties)
-	// }
 	var doc []Documents
 	byteDoc, _ := json.Marshal(docs)
 	json.Unmarshal(byteDoc, &doc)
@@ -78,14 +74,12 @@ func UpdateDocument(ctx *gin.Context) {
 
 	err := ctx.BindJSON(&updatedDoc)
 	if err != nil {
-		// http.Error(w, "Invalid request body", http.StatusBadRequest)
 		ctx.JSON(400, gin.H{"error": "Invalid request body"})
 		return
 	}
 
 	Id, exists := updatedDoc["Id"]
 	if !exists {
-		// http.Error(w, "Missing Id of Doc", http.StatusBadRequest)
 		ctx.JSON(400, gin.H{"error": "Missing Id of Doc"})
 		return
 	}
@@ -96,21 +90,17 @@ func UpdateDocument(ctx *gin.Context) {
 	for key, val := range updatedDoc {
 		_, err = client.HSet(Id, key, val).Result()
 		if err != nil {
-			// http.Error(w, "Failed to update Redis", http.StatusInternalServerError)
 			ctx.JSON(500, gin.H{"error": "Failed to update Redis"})
 			return
 		}
 	}
 
-	// re-indexing doc
 	_, err = searchClient.AddHash(Id, 1.0, "", false)
 	if err != nil {
 		fmt.Println("Error re-indexing document", err)
-		// http.Error(w, "Error re-indexing document", http.StatusInternalServerError)
 		ctx.JSON(500, gin.H{"error": "Error re-indexing document"})
 		return
 	}
-	// fmt.Println("Successfully updated document")
 	ctx.JSON(200, gin.H{"message": "Successfully updated document"})
 
 }
